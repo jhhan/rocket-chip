@@ -78,8 +78,10 @@ class DefaultConfig extends ChiselConfig (
       case BuildTiles =>
         List.fill(site(NTiles)){ (r:Bool) => Module(new RocketTile(resetSignal = r), {case TLId => "L1ToL2"}) }
       case BuildRoCC => None
-      case NDCachePorts => 2 + (if(site(BuildRoCC).isEmpty) 0 else 1) 
-      case NPTWPorts => 2 + (if(site(BuildRoCC).isEmpty) 0 else 3)
+      case NRoCCCSRs => 0
+      case NDCachePorts => 2 + (if(site(BuildRoCC).isEmpty) 0 else 2)
+      case NPTWPorts => 2
+      case NPTWs => 1 + (if (site(BuildRoCC).isEmpty) 0 else 1)
       //Rocket Core Constants
       case FetchWidth => 1
       case RetireWidth => 1
@@ -132,6 +134,16 @@ class DefaultConfig extends ChiselConfig (
         case TLMaxManagerXacts => 1
         case TLMaxClientXacts => 1
         case TLMaxClientsPerPort => site(NAcquireTransactors) + 2
+      }:PF
+      case "Network" => {
+        case TLNManagers => 0
+        case TLNCachingClients => 0
+        case TLNCachelessClients => site(NTiles)
+        case TLCoherencePolicy => new MICoherence(site(L2DirectoryRepresentation)) 
+        case TLMaxManagerXacts => 1
+        case TLMaxClientXacts => 8
+        case TLMaxClientsPerPort =>
+          if(site(BuildRoCC).isEmpty) 0 else site(NTiles)
       }:PF
       case NTiles => Knob("NTILES")
       case NMemoryChannels => 1

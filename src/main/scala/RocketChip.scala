@@ -81,6 +81,10 @@ class MultiChannelTop extends Module with TopLevelParameters {
   // Build an Uncore and a set of Tiles
   val uncore = Module(new Uncore, {case TLId => "L1ToL2"})
   val tileList = uncore.io.htif zip params(BuildTiles) map { case(hl, bt) => bt(hl.reset) }
+  val net_acquire_xbar = Module(
+    new BasicCrossbar(nTiles, new Acquire), { case TLId => "Network" })
+  val net_grant_xbar = Module(
+    new BasicCrossbar(nTiles, new Grant),   { case TLId => "Network" })
 
   // Connect each tile to the HTIF
   uncore.io.htif.zip(tileList).zipWithIndex.foreach {
@@ -92,6 +96,10 @@ class MultiChannelTop extends Module with TopLevelParameters {
       hl.ipi_req <> Queue(tile.io.host.ipi_req)
       tile.io.host.ipi_rep <> Queue(hl.ipi_rep)
       hl.debug_stats_pcr := tile.io.host.debug_stats_pcr
+      net_acquire_xbar.io.in(i) <> tile.io.net.tx.acquire
+      net_acquire_xbar.io.out(i) <> tile.io.net.rx.acquire
+      net_grant_xbar.io.in(i) <> tile.io.net.rx.grant
+      net_grant_xbar.io.out(i) <> tile.io.net.tx.grant
   }
 
   // Connect the uncore to the tile memory ports, HostIO and MemIO
