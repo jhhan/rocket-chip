@@ -136,9 +136,11 @@ class DefaultConfig extends ChiselConfig (
         case TLMaxClientsPerPort => site(NAcquireTransactors) + 2
       }:PF
       case "Network" => {
-        case TLNManagers => 0
+        case TLNManagers => 1
         case TLNCachingClients => 0
-        case TLNCachelessClients => site(NTiles)
+        // this determines the size of the "port number"
+        // for now, support a 16-bit port number (same as TCP/UDP)
+        case TLNCachelessClients => (1 << 16)
         case TLCoherencePolicy => new MICoherence(site(L2DirectoryRepresentation)) 
         case TLMaxManagerXacts => 1
         case TLMaxClientXacts => 8

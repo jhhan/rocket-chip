@@ -174,3 +174,32 @@ class RocketChipTileLinkCrossbar(
   doDecoupledHookups(gntNet.io, (tl: TileLinkIO) => tl.grant)
   doDecoupledHookups(ackNet.io, (tl: TileLinkIO) => tl.finish)
 }
+
+class RouterIO[T <: Data](n: Int, dType: T) extends Bundle {
+  val in = Vec.fill(n){Decoupled(new LogicalNetworkIO(dType))}.flip
+  val out = Vec.fill(n){Decoupled(new LogicalNetworkIO(dType))}
+  val ports = Vec.fill(n){UInt(INPUT, params(LNHeaderBits))}
+}
+
+class RocketChipPortRouter[T <: Data](n: Int, dType: T) extends Module {
+  val io = new RouterIO(n, dType)
+
+  // wrap the LogicalNetworkIO in the PhysicalNetworkIO
+  val xbar = Module(new BasicCrossbar(n, new LogicalNetworkIO(dType)))
+
+  for (i <- 0 until n) {
+    val phys_in_dst = PriorityEncoder(io.ports.map {
+      port => io.in(i).bits.header.dst === port
+    })
+
+    xbar.io.in(i).bits.header.dst := phys_in_dst
+    xbar.io.in(i).bits.header.src := io.ports(i)
+    xbar.io.in(i).bits.payload := io.in(i).bits
+    xbar.io.in(i).valid := io.in(i).valid
+    io.in(i).ready := xbar.io.in(i).ready
+
+    io.out(i).bits := xbar.io.out(i).bits.payload
+    io.out(i).valid := xbar.io.out(i).valid
+    xbar.io.out(i).ready := io.out(i).ready
+  }
+}
