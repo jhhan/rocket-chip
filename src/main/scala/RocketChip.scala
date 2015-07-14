@@ -98,10 +98,10 @@ class MultiChannelTop extends Module with TopLevelParameters {
       hl.debug_stats_pcr := tile.io.host.debug_stats_pcr
       net_acquire_router.io.in(i) <> tile.io.net.tx.acquire
       net_acquire_router.io.out(i) <> tile.io.net.rx.acquire
-      net_acquire_router.io.ports(i) := tile.io.port
+      net_acquire_router.io.addrs(i) := tile.io.addr
       net_grant_router.io.in(i) <> tile.io.net.rx.grant
       net_grant_router.io.out(i) <> tile.io.net.tx.grant
-      net_grant_router.io.ports(i) := tile.io.port
+      net_grant_router.io.addrs(i) := tile.io.addr
   }
 
   // Connect the uncore to the tile memory ports, HostIO and MemIO

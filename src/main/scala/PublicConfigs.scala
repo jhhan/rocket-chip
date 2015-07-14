@@ -138,15 +138,16 @@ class DefaultConfig extends ChiselConfig (
       case "Network" => {
         case TLNManagers => 1
         case TLNCachingClients => 0
-        // this determines the size of the "port number"
-        // for now, support a 16-bit port number (same as TCP/UDP)
-        case TLNCachelessClients => (1 << 16)
+        case TLNCachelessClients => site(NTiles)
         case TLCoherencePolicy => new MICoherence(site(L2DirectoryRepresentation)) 
         case TLMaxManagerXacts => 1
         case TLMaxClientXacts => 8
         case TLMaxClientsPerPort =>
           if(site(BuildRoCC).isEmpty) 0 else site(NTiles)
       }:PF
+      // compatible with TCP/IP
+      case RNAddrBits => 32
+      case RNPortBits => 16
       case NTiles => Knob("NTILES")
       case NMemoryChannels => 1
       case NBanksPerMemoryChannel => Knob("NBANKS")

@@ -176,26 +176,30 @@ class RocketChipTileLinkCrossbar(
 }
 
 class RouterIO[T <: Data](n: Int, dType: T) extends Bundle {
-  val in = Vec.fill(n){Decoupled(new LogicalNetworkIO(dType))}.flip
-  val out = Vec.fill(n){Decoupled(new LogicalNetworkIO(dType))}
-  val ports = Vec.fill(n){UInt(INPUT, params(LNHeaderBits))}
+  val in = Vec.fill(n){Decoupled(new RemoteNetworkIO(dType))}.flip
+  val out = Vec.fill(n){Decoupled(new RemoteNetworkIO(dType))}
+  val addrs = Vec.fill(n){new RemoteAddress().asInput}
 }
 
 class RocketChipPortRouter[T <: Data](n: Int, dType: T) extends Module {
   val io = new RouterIO(n, dType)
 
   // wrap the LogicalNetworkIO in the PhysicalNetworkIO
-  val xbar = Module(new BasicCrossbar(n, new LogicalNetworkIO(dType)))
+  val xbar = Module(new BasicCrossbar(n, new RemoteNetworkIO(dType)))
 
   for (i <- 0 until n) {
-    val phys_in_dst = PriorityEncoder(io.ports.map {
-      port => io.in(i).bits.header.dst === port
-    })
+    val matching_ports = io.addrs.map {
+      ra => (io.in(i).bits.header.dst.addr === UInt(0) ||
+             io.in(i).bits.header.dst.addr === ra.addr) &&
+            (io.in(i).bits.header.dst.port === ra.port)
+    }
+    val phys_in_dst = PriorityEncoder(matching_ports)
+    val dst_found = Cat(matching_ports).orR
 
     xbar.io.in(i).bits.header.dst := phys_in_dst
-    xbar.io.in(i).bits.header.src := io.ports(i)
+    xbar.io.in(i).bits.header.src := UInt(i)
     xbar.io.in(i).bits.payload := io.in(i).bits
-    xbar.io.in(i).valid := io.in(i).valid
+    xbar.io.in(i).valid := io.in(i).valid && dst_found
     io.in(i).ready := xbar.io.in(i).ready
 
     io.out(i).bits := xbar.io.out(i).bits.payload
