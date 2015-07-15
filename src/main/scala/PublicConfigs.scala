@@ -78,7 +78,7 @@ class DefaultConfig extends ChiselConfig (
       case BuildTiles =>
         List.fill(site(NTiles)){ (r:Bool) => Module(new RocketTile(resetSignal = r), {case TLId => "L1ToL2"}) }
       case BuildRoCC => None
-      case NRoCCCSRs => 0
+      case NRoccCSRs => 0
       case NDCachePorts => 2 + (if(site(BuildRoCC).isEmpty) 0 else 2)
       case NPTWPorts => 2
       case NPTWs => 1 + (if (site(BuildRoCC).isEmpty) 0 else 1)

@@ -14,7 +14,7 @@ class CopyAccelConfig extends ChiselConfig(
       case CoreName => "CopyAccelerator"
       case TLId => "Network"
     })))
-    case NRoCCCSRs => 8
+    case NRoccCSRs => 11
     case NTiles => 2
   }
 )
