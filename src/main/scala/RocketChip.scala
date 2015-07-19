@@ -82,9 +82,9 @@ class MultiChannelTop extends Module with TopLevelParameters {
   val uncore = Module(new Uncore, {case TLId => "L1ToL2"})
   val tileList = uncore.io.htif zip params(BuildTiles) map { case(hl, bt) => bt(hl.reset) }
   val net_acquire_router = Module(
-    new RocketChipPortRouter(nTiles, new Acquire), { case TLId => "Network" })
+    new RocketChipRouter(nTiles, new Acquire, true), { case TLId => "Network" })
   val net_grant_router = Module(
-    new RocketChipPortRouter(nTiles, new Grant),   { case TLId => "Network" })
+    new RocketChipRouter(nTiles, new Grant), { case TLId => "Network" })
 
   // Connect each tile to the HTIF
   uncore.io.htif.zip(tileList).zipWithIndex.foreach {
@@ -98,10 +98,11 @@ class MultiChannelTop extends Module with TopLevelParameters {
       hl.debug_stats_pcr := tile.io.host.debug_stats_pcr
       net_acquire_router.io.in(i) <> tile.io.net.tx.acquire
       net_acquire_router.io.out(i) <> tile.io.net.rx.acquire
-      net_acquire_router.io.addrs(i) := tile.io.addr
+      net_acquire_router.io.switch_addr(i) <> tile.io.net.ctrl.switch_addr
+      net_acquire_router.io.cur_addr(i) := tile.io.net.ctrl.cur_addr
       net_grant_router.io.in(i) <> tile.io.net.rx.grant
       net_grant_router.io.out(i) <> tile.io.net.tx.grant
-      net_grant_router.io.addrs(i) := tile.io.addr
+      net_grant_router.io.cur_addr(i) := tile.io.net.ctrl.cur_addr
   }
 
   // Connect the uncore to the tile memory ports, HostIO and MemIO

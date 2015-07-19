@@ -175,32 +175,163 @@ class RocketChipTileLinkCrossbar(
   doDecoupledHookups(ackNet.io, (tl: TileLinkIO) => tl.finish)
 }
 
+class IndexPair(n: Int) extends Bundle {
+  val fe_idx = UInt(width = log2Up(n))
+  val be_idx = UInt(width = log2Up(n))
+  override def clone = new IndexPair(n).asInstanceOf[this.type]
+}
+
+class RocketChipSwitcher(n: Int) extends Module {
+  val io = new Bundle {
+    val in_req = Vec.fill(n) { Decoupled(new RemoteAddress).flip }
+    val out_req = Vec.fill(n) { Decoupled(new RemoteAddress) }
+    val cur_addr = Vec.fill(n) { new RemoteAddress().asInput }
+    val finish = Vec.fill(n) { Bool(INPUT) }
+  }
+
+  val nroutes = n * (n - 1)
+
+  val ctr = Counter(nroutes)
+  ctr.inc()
+
+  val idx_table = Vec.fill(nroutes) { new IndexPair(n) }
+
+  var fe_ind = 0
+  var be_ind = 1
+
+  for (i <- 0 until nroutes) {
+    idx_table(i).fe_idx := UInt(fe_ind)
+    idx_table(i).be_idx := UInt(be_ind)
+
+    if (be_ind == n - 1) {
+      fe_ind += 1
+      be_ind = 0
+    } else if (be_ind == fe_ind - 1) {
+      be_ind += 2
+    } else {
+      be_ind += 1
+    }
+  }
+
+  val fe_idx = idx_table(ctr.value).fe_idx
+  val fe_req = io.in_req(fe_idx)
+
+  val be_idx = idx_table(ctr.value).be_idx
+  val be_req = io.out_req(be_idx)
+  val be_addr = io.cur_addr(be_idx)
+
+  val be_busy = Vec.fill(n) { Reg(init = Bool(false)) }
+
+  val fe_be_map = Vec.fill(n) { Reg(UInt(width = log2Up(n))) }
+
+  for (i <- 0 until n) {
+    io.out_req(i).valid := fe_req.valid && be_idx === UInt(i)
+    io.out_req(i).bits := fe_req.bits
+    io.in_req(i).ready := !be_busy(be_idx) && fe_idx === UInt(i) && be_req.ready
+
+    when (io.finish(i)) {
+      be_busy(fe_be_map(i)) := Bool(false)
+    }
+  }
+
+  when (fe_req.fire()) {
+    be_busy(be_idx) := Bool(true)
+    fe_be_map(fe_idx) := be_idx
+  }
+}
+
+class RocketChipNetAdapter[T <: Data](n: Int, dType: T, canSwitch: Boolean)
+    extends Module {
+
+  val io = new Bundle {
+    val log_in = Decoupled(new RemoteNetworkIO(dType)).flip
+    val phys_out = Decoupled(new PhysicalNetworkIO(n, new RemoteNetworkIO(dType)))
+    val cur_addr = Vec.fill(n) { new RemoteAddress().asInput }
+    val switch_addr = Decoupled(new RemoteAddress)
+    val switch_done = Bool(OUTPUT)
+    val phys_src = UInt(INPUT, log2Up(n))
+  }
+
+  val matching_ports = io.cur_addr.map {
+    ra => (io.log_in.bits.header.dst.addr === UInt(0) ||
+           io.log_in.bits.header.dst.addr === ra.addr) &&
+          (io.log_in.bits.header.dst.port === ra.port)
+  }
+  val phys_in_dst = PriorityEncoder(matching_ports)
+  val dst_found = Cat(matching_ports).orR
+
+  io.phys_out.bits.header.dst := phys_in_dst
+  io.phys_out.bits.header.src := io.phys_src
+  io.phys_out.bits.payload := io.log_in.bits
+  io.phys_out.valid := io.log_in.valid && dst_found
+  io.log_in.ready := io.phys_out.ready
+
+  if (canSwitch) {
+    val s_idle :: s_req :: s_wait :: s_finish :: Nil = Enum(Bits(), 4)
+    val state = Reg(init = s_idle)
+
+    io.switch_addr.valid := (state === s_req)
+    io.switch_addr.bits := io.log_in.bits.header.dst
+    io.switch_done := (state === s_finish)
+
+    switch (state) {
+      is (s_idle) {
+        when (io.log_in.valid && !dst_found) {
+          state := s_req
+        }
+      }
+      is (s_req) {
+        when (io.switch_addr.ready) {
+          state := s_wait
+        }
+      }
+      is (s_wait) {
+        when (dst_found) {
+          state := s_finish
+        }
+      }
+      is (s_finish) {
+        state := s_idle
+      }
+    }
+  }
+}
+
 class RouterIO[T <: Data](n: Int, dType: T) extends Bundle {
   val in = Vec.fill(n){Decoupled(new RemoteNetworkIO(dType))}.flip
   val out = Vec.fill(n){Decoupled(new RemoteNetworkIO(dType))}
-  val addrs = Vec.fill(n){new RemoteAddress().asInput}
+  val cur_addr = Vec.fill(n){new RemoteAddress().asInput}
+  val switch_addr = Vec.fill(n){Decoupled(new RemoteAddress)}
 }
 
-class RocketChipPortRouter[T <: Data](n: Int, dType: T) extends Module {
+class RocketChipRouter[T <: Data](n: Int, dType: T, canSwitch: Boolean = false)
+    extends Module {
   val io = new RouterIO(n, dType)
 
   // wrap the LogicalNetworkIO in the PhysicalNetworkIO
   val xbar = Module(new BasicCrossbar(n, new RemoteNetworkIO(dType)))
 
-  for (i <- 0 until n) {
-    val matching_ports = io.addrs.map {
-      ra => (io.in(i).bits.header.dst.addr === UInt(0) ||
-             io.in(i).bits.header.dst.addr === ra.addr) &&
-            (io.in(i).bits.header.dst.port === ra.port)
-    }
-    val phys_in_dst = PriorityEncoder(matching_ports)
-    val dst_found = Cat(matching_ports).orR
+  val switcher = if (canSwitch) {
+    val sw = Module(new RocketChipSwitcher(n))
+    sw.io.out_req <> io.switch_addr
+    sw.io.cur_addr <> io.cur_addr
+    Some(sw)
+  } else {
+    io.switch_addr.foreach(sr => sr.valid := Bool(false))
+    None
+  }
 
-    xbar.io.in(i).bits.header.dst := phys_in_dst
-    xbar.io.in(i).bits.header.src := UInt(i)
-    xbar.io.in(i).bits.payload := io.in(i).bits
-    xbar.io.in(i).valid := io.in(i).valid && dst_found
-    io.in(i).ready := xbar.io.in(i).ready
+  for (i <- 0 until n) {
+    val decoder = Module(new RocketChipNetAdapter(n, dType, canSwitch))
+    decoder.io.log_in <> io.in(i)
+    decoder.io.phys_out <> xbar.io.in(i)
+    decoder.io.cur_addr <> io.cur_addr
+    decoder.io.phys_src := UInt(i)
+
+    switcher.foreach { sw =>
+      sw.io.in_req(i) <> decoder.io.switch_addr
+      sw.io.finish(i) <> decoder.io.switch_done
+    }
 
     io.out(i).bits := xbar.io.out(i).bits.payload
     io.out(i).valid := xbar.io.out(i).valid
