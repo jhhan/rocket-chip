@@ -250,12 +250,17 @@ class RocketChipNetAdapter[T <: Data](n: Int, dType: T, canSwitch: Boolean)
     val switch_addr = Decoupled(new RemoteAddress)
     val switch_done = Bool(OUTPUT)
     val phys_src = UInt(INPUT, log2Up(n))
+    val route_error = Bool(OUTPUT)
   }
 
-  val matching_ports = io.cur_addr.map {
-    ra => (io.log_in.bits.header.dst.addr === UInt(0) ||
-           io.log_in.bits.header.dst.addr === ra.addr) &&
-          (io.log_in.bits.header.dst.port === ra.port)
+  val matching_ports = if (params(AddressRouting)) {
+    io.cur_addr.map {
+      ra => (io.log_in.bits.header.dst.addr === UInt(0) ||
+             io.log_in.bits.header.dst.addr === ra.addr) &&
+            (io.log_in.bits.header.dst.port === ra.port)
+    }
+  } else {
+    io.cur_addr.map { ra => (io.log_in.bits.header.dst.port === ra.port) }
   }
   val phys_in_dst = PriorityEncoder(matching_ports)
   val dst_found = Cat(matching_ports).orR
@@ -294,6 +299,9 @@ class RocketChipNetAdapter[T <: Data](n: Int, dType: T, canSwitch: Boolean)
         state := s_idle
       }
     }
+    io.route_error := Bool(false)
+  } else {
+    io.route_error := Reg(next = io.log_in.valid && !dst_found)
   }
 }
 
@@ -302,6 +310,7 @@ class RouterIO[T <: Data](n: Int, dType: T) extends Bundle {
   val out = Vec.fill(n){Decoupled(new RemoteNetworkIO(dType))}
   val cur_addr = Vec.fill(n){new RemoteAddress().asInput}
   val switch_addr = Vec.fill(n){Decoupled(new RemoteAddress)}
+  val route_error = Vec.fill(n) { Bool(OUTPUT) }
 }
 
 class RocketChipRouter[T <: Data](n: Int, dType: T, canSwitch: Boolean = false)
@@ -327,6 +336,7 @@ class RocketChipRouter[T <: Data](n: Int, dType: T, canSwitch: Boolean = false)
     decoder.io.phys_out <> xbar.io.in(i)
     decoder.io.cur_addr <> io.cur_addr
     decoder.io.phys_src := UInt(i)
+    decoder.io.route_error <> io.route_error(i)
 
     switcher.foreach { sw =>
       sw.io.in_req(i) <> decoder.io.switch_addr

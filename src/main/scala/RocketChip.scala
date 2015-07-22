@@ -27,6 +27,10 @@ case object BuildL2CoherenceManager extends Field[() => CoherenceAgent]
 case object BuildTiles extends Field[Seq[(Bool) => Tile]]
 /** Which protocol to use to talk to memory/devices */
 case object UseNASTI extends Field[Boolean]
+/** Enable address switch interrupts */
+case object UseAddressSwitch extends Field[Boolean]
+/** Route based on address as well as port */
+case object AddressRouting extends Field[Boolean]
 
 /** Utility trait for quick access to some relevant parameters */
 trait TopLevelParameters extends UsesParameters {
@@ -82,9 +86,11 @@ class MultiChannelTop extends Module with TopLevelParameters {
   val uncore = Module(new Uncore, {case TLId => "L1ToL2"})
   val tileList = uncore.io.htif zip params(BuildTiles) map { case(hl, bt) => bt(hl.reset) }
   val net_acquire_router = Module(
-    new RocketChipRouter(nTiles, new Acquire, true), { case TLId => "Network" })
+    new RocketChipRouter(nTiles, new Acquire, params(UseAddressSwitch)),
+      { case TLId => "Network" })
   val net_grant_router = Module(
-    new RocketChipRouter(nTiles, new Grant), { case TLId => "Network" })
+    new RocketChipRouter(nTiles, new Grant),
+      { case TLId => "Network" })
 
   // Connect each tile to the HTIF
   uncore.io.htif.zip(tileList).zipWithIndex.foreach {
@@ -103,6 +109,9 @@ class MultiChannelTop extends Module with TopLevelParameters {
       net_grant_router.io.in(i) <> tile.io.net.rx.grant
       net_grant_router.io.out(i) <> tile.io.net.tx.grant
       net_grant_router.io.cur_addr(i) := tile.io.net.ctrl.cur_addr
+      tile.io.net.ctrl.route_error := Cat(
+        net_grant_router.io.route_error(i),
+        net_acquire_router.io.route_error(i))
   }
 
   // Connect the uncore to the tile memory ports, HostIO and MemIO

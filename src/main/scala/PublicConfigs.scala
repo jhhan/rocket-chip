@@ -149,6 +149,8 @@ class DefaultConfig extends ChiselConfig (
       case RNAddrBits => 32
       case RNPortBits => 16
       case NTiles => Knob("NTILES")
+      case UseAddressSwitch => false
+      case AddressRouting => false
       case NMemoryChannels => 1
       case NBanksPerMemoryChannel => Knob("NBANKS")
       case NOutstandingMemReqsPerChannel => site(NBanksPerMemoryChannel)*(site(NAcquireTransactors)+2)
