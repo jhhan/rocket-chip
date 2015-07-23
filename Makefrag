@@ -1,3 +1,5 @@
+export ROCKETCHIP_ADDONS=riscv-dma
+
 # check RISCV environment variable
 ifndef RISCV
 $(error Please set environment variable RISCV. Please take a look at README)
