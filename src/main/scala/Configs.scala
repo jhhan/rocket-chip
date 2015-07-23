@@ -6,13 +6,17 @@ import Chisel._
 import uncore._
 import rocket._
 import rocket.Util._
+import zscale._
 import scala.math.max
+import DefaultTestSuites._
 
 class DefaultConfig extends ChiselConfig (
   topDefinitions = { (pname,site,here) => 
     type PF = PartialFunction[Any,Any]
     def findBy(sname:Any):Any = here[PF](site[Any](sname))(pname)
     pname match {
+      //
+      case UseZscale => false
       //HTIF Parameters
       case HTIFWidth => Dump("HTIF_WIDTH", 16)
       case HTIFNSCR => 64
@@ -75,8 +79,12 @@ class DefaultConfig extends ChiselConfig (
       case BuildL2CoherenceManager => () =>
         Module(new L2BroadcastHub, { case InnerTLId => "L1ToL2"; case OuterTLId => "L2ToMC" })
       //Tile Constants
-      case BuildTiles =>
+      case BuildTiles => {
+        TestGeneration.addSuites(rv64i.map(_("p")))
+        TestGeneration.addSuites((if(site(UseVM)) List("pt","v") else List("pt")).flatMap(env => rv64u.map(_(env))))
+        TestGeneration.addSuites(if(site(NTiles) > 1) List(mtBmarks, bmarks) else List(bmarks))
         List.fill(site(NTiles)){ (r:Bool) => Module(new RocketTile(resetSignal = r), {case TLId => "L1ToL2"}) }
+      }
       case BuildRoCC => None
       case NRoccCSRs => 0
       case NDCachePorts => 2 + (if(site(BuildRoCC).isEmpty) 0 else 2)
@@ -91,7 +99,12 @@ class DefaultConfig extends ChiselConfig (
       case FastMulDiv => true
       case XLen => 64
       case NMultXpr => 32
-      case BuildFPU => Some(() => Module(new FPU))
+      case BuildFPU => {
+        val env = if(site(UseVM)) List("p","pt","v") else List("p","pt")
+        if(site(FDivSqrt)) TestGeneration.addSuites(env.map(rv64uf))
+        else TestGeneration.addSuites(env.map(rv64ufNoDiv))
+        Some(() => Module(new FPU))
+      }
       case FDivSqrt => true
       case SFMALatency => 2
       case DFMALatency => 3
@@ -214,6 +227,20 @@ class DefaultL2Config extends ChiselConfig(new WithL2Cache ++ new DefaultConfig)
 class DefaultL2VLSIConfig extends ChiselConfig(new WithL2Cache ++ new DefaultVLSIConfig)
 class DefaultL2CPPConfig extends ChiselConfig(new WithL2Cache ++ new DefaultCPPConfig)
 class DefaultL2FPGAConfig extends ChiselConfig(new WithL2Capacity64 ++ new WithL2Cache ++ new DefaultFPGAConfig)
+
+class WithZscale extends ChiselConfig(
+  (pname,site,here) => pname match {
+    case BuildZscale => {
+      TestGeneration.addSuites(List(rv32ui("p"), rv32um("p")))
+      (r: Bool) => Module(new Zscale(r), {case TLId => "L1ToL2"})
+    }
+    case UseZscale => true
+    case BootROMCapacity => Dump("BOOT_CAPACITY", 16*1024)
+    case DRAMCapacity => Dump("DRAM_CAPACITY", 64*1024*1024)
+  }
+)
+
+class ZscaleConfig extends ChiselConfig(new WithZscale ++ new DefaultConfig)
 
 class FPGAConfig extends ChiselConfig (
   (pname,site,here) => pname match {
