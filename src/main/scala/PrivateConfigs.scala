@@ -15,12 +15,14 @@ class CopyAccelConfig extends ChiselConfig(
       case TLId => "Network"
     })))
     case NRoccCSRs => 16
-    case NTiles => 2
   }
 )
+
+class DualCoreConfig extends ChiselConfig(
+  (pname,site,here) => pname match { case NTiles => 2})
 
 class CopyAccelCPPConfig extends ChiselConfig(
   new CopyAccelConfig ++ new DefaultCPPConfig)
 
 class CopyAccelFPGAConfig extends ChiselConfig(
-  new CopyAccelConfig ++ new DefaultFPGAConfig)
+  new DualCoreConfig ++ new CopyAccelConfig ++ new DefaultFPGAConfig)
