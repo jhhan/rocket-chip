@@ -66,7 +66,7 @@ run-$kind-tests-fast: $$(addprefix $$(output_dir)/, $$(addsuffix .run, $targets)
       } else { "\n" }
     }
 
-    val f = createOutputFile("Makefrag-tests." + Driver.chiselConfigClassName.get)
+    val f = createOutputFile(s"${Driver.topComponent.get.name}.${Driver.chiselConfigClassName.get}.d")
     f.write(List(gen("asm", asmSuites.values.toSeq), gen("bmark", bmarkSuites.values.toSeq)).mkString("\n"))
     f.close
   }
@@ -117,6 +117,9 @@ object DefaultTestSuites {
     List("ad","ae","af","ag","ai","ak","al","am","an","ap","aq","ar","at","av","ay","az",
          "bb","bc","bf","bh","bj","bk","bm","bo","br","bs","ce","cf","cg","ci","ck","cl",
          "cm","cs","cv","cy","dc","df","dm","do","dr","ds","du","dv").map(_+"_matmul")).toSet)
+
+  val zscaleBmarks = new BenchmarkTestSuite("zscale", "$(base_dir)/zscale/sw", Set(
+    "led", "mbist"))
 }
 
 object TestGenerator extends App {

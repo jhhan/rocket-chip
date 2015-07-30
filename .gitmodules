@@ -22,6 +22,9 @@
 [submodule "zscale"]
 	path = zscale
 	url = https://github.com/ucb-bar/zscale
+[submodule "junctions"]
+	path = junctions
+	url = https://github.com/ucb-bar/junctions
 [submodule "riscv-dma"]
 	path = riscv-dma
 	url = git@github.com:zhemao/riscv-dma.git
