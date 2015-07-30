@@ -178,7 +178,7 @@ class RocketChipTileLinkCrossbar(
 class IndexPair(n: Int) extends Bundle {
   val fe_idx = UInt(width = log2Up(n))
   val be_idx = UInt(width = log2Up(n))
-  override def clone = new IndexPair(n).asInstanceOf[this.type]
+  override def cloneType = new IndexPair(n).asInstanceOf[this.type]
 }
 
 class RocketChipSwitcher(n: Int) extends Module {
@@ -331,16 +331,16 @@ class RocketChipRouter[T <: Data](n: Int, dType: T, canSwitch: Boolean = false)
   }
 
   for (i <- 0 until n) {
-    val decoder = Module(new RocketChipNetAdapter(n, dType, canSwitch))
-    decoder.io.log_in <> io.in(i)
-    decoder.io.phys_out <> xbar.io.in(i)
-    decoder.io.cur_addr <> io.cur_addr
-    decoder.io.phys_src := UInt(i)
-    decoder.io.route_error <> io.route_error(i)
+    val adapter = Module(new RocketChipNetAdapter(n, dType, canSwitch))
+    adapter.io.log_in <> io.in(i)
+    adapter.io.phys_out <> xbar.io.in(i)
+    adapter.io.cur_addr <> io.cur_addr
+    adapter.io.phys_src := UInt(i)
+    adapter.io.route_error <> io.route_error(i)
 
     switcher.foreach { sw =>
-      sw.io.in_req(i) <> decoder.io.switch_addr
-      sw.io.finish(i) <> decoder.io.switch_done
+      sw.io.in_req(i) <> adapter.io.switch_addr
+      sw.io.finish(i) <> adapter.io.switch_done
     }
 
     io.out(i).bits := xbar.io.out(i).bits.payload
