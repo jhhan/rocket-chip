@@ -10,6 +10,7 @@ class CopyAccelConfig extends ChiselConfig(
     case RoCCMaxTaggedMemXacts => 2
     case DMAMaxXacts => site(TLMaxClientXacts)
     case DMADataBits => 32
+    case DMAQueueDepth => 4
     case BuildRoCC => Some(() => (Module(new CopyAccelerator, {
       case CoreName => "CopyAccelerator"
       case TLId => "Network"
