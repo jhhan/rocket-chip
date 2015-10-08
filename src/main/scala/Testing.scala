@@ -67,9 +67,9 @@ run-$kind-tests-fast: $$(addprefix $$(output_dir)/, $$(addsuffix .run, $targets)
       } else { "\n" }
     }
 
-    val f = createOutputFile(s"${Driver.topComponent.get.name}.${Driver.chiselConfigClassName.get}.d")
-    f.write(List(gen("asm", asmSuites.values.toSeq), gen("bmark", bmarkSuites.values.toSeq)).mkString("\n"))
-    f.close
+    //val f = createOutputFile(s"${Driver.topComponent.get.name}.${Driver.chiselConfigClassName.get}.d")
+    //f.write(List(gen("asm", asmSuites.values.toSeq), gen("bmark", bmarkSuites.values.toSeq)).mkString("\n"))
+    //f.close
   }
 }
 
@@ -125,6 +125,7 @@ object DefaultTestSuites {
 
 object TestGenerator extends App {
   val gen = () => Class.forName("rocketchip."+args(0)).newInstance().asInstanceOf[Module]
-  chiselMain.run(args.drop(1), gen)
-  TestGeneration.generateMakefrag
+  //chiselMain.run(args.drop(1), gen)
+  Driver.elaborateWithConfigName(gen, args(1))
+  //TestGeneration.generateMakefrag
 }

@@ -112,45 +112,45 @@ module rocketTestHarness;
 
   Top dut
   (
-    .clk(clk),
+    .clock(clk),
     .reset(reset),
 
-    .io_host_in_valid(htif_in_valid_delay),
-    .io_host_in_ready(htif_in_ready_delay),
-    .io_host_in_bits(htif_in_bits_delay),
-    .io_host_out_valid(htif_out_valid_delay),
-    .io_host_out_ready(htif_out_ready_delay),
-    .io_host_out_bits(htif_out_bits_delay),
+    .io$host$in$valid(htif_in_valid_delay),
+    .io$host$in$ready(htif_in_ready_delay),
+    .io$host$in$bits(htif_in_bits_delay),
+    .io$host$out$valid(htif_out_valid_delay),
+    .io$host$out$ready(htif_out_ready_delay),
+    .io$host$out$bits(htif_out_bits_delay),
 
 `ifndef FPGA
-    .io_host_clk(htif_clk),
-    .io_host_clk_edge(),
-    .io_host_debug_stats_pcr(htif_out_stats_delay),
+    .io$host$clk(htif_clk),
+    .io$host$clk__edge(),
+    .io$host$debug__stats__pcr(htif_out_stats_delay),
 
 `ifdef MEM_BACKUP_EN
-    .io_mem_backup_ctrl_en(1'b1),
+    .io$mem__backup__ctrl$en(1'b1),
 `else
-    .io_mem_backup_ctrl_en(1'b0),
+    .io$mem__backup__ctrl$en(1'b0),
 `endif
-    .io_mem_backup_ctrl_in_valid(mem_bk_in_valid_delay),
-    .io_mem_backup_ctrl_out_ready(mem_bk_out_ready_delay),
-    .io_mem_backup_ctrl_out_valid(mem_bk_out_valid_delay),
+    .io$mem__backup__ctrl$in__valid(mem_bk_in_valid_delay),
+    .io$mem__backup__ctrl$out__ready(mem_bk_out_ready_delay),
+    .io$mem__backup__ctrl$out__valid(mem_bk_out_valid_delay),
 `endif
 
-    .io_mem_req_cmd_valid(mem_req_valid_delay),
-    .io_mem_req_cmd_ready(mem_req_ready_delay),
-    .io_mem_req_cmd_bits_rw(mem_req_bits_rw_delay),
-    .io_mem_req_cmd_bits_addr(mem_req_bits_addr_delay),
-    .io_mem_req_cmd_bits_tag(mem_req_bits_tag_delay),
+    .io$mem$req__cmd$valid(mem_req_valid_delay),
+    .io$mem$req__cmd$ready(mem_req_ready_delay),
+    .io$mem$req__cmd$bits$rw(mem_req_bits_rw_delay),
+    .io$mem$req__cmd$bits$addr(mem_req_bits_addr_delay),
+    .io$mem$req__cmd$bits$tag(mem_req_bits_tag_delay),
 
-    .io_mem_req_data_valid(mem_req_data_valid_delay),
-    .io_mem_req_data_ready(mem_req_data_ready_delay),
-    .io_mem_req_data_bits_data(mem_req_data_bits_delay),
+    .io$mem$req__data$valid(mem_req_data_valid_delay),
+    .io$mem$req__data$ready(mem_req_data_ready_delay),
+    .io$mem$req__data$bits$data(mem_req_data_bits_delay),
 
-    .io_mem_resp_valid(mem_resp_valid_delay),
-    .io_mem_resp_ready(mem_resp_ready_delay),
-    .io_mem_resp_bits_tag(mem_resp_bits_tag_delay),
-    .io_mem_resp_bits_data(mem_resp_bits_data_delay)
+    .io$mem$resp$valid(mem_resp_valid_delay),
+    .io$mem$resp$ready(mem_resp_ready_delay),
+    .io$mem$resp$bits$tag(mem_resp_bits_tag_delay),
+    .io$mem$resp$bits$data(mem_resp_bits_data_delay)
   );
   
 `ifdef FPGA
